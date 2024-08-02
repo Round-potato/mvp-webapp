@@ -1,11 +1,16 @@
 //import logo from './logo.svg';
+import userEvent from '@testing-library/user-event';
 import './App.css';
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react";
 
 const App = () => {
-  const [value, setValue] = useState("")
-  const [error, setError] = useState("")
-  const [chatDisplay, setChatDisplay] = useState([])
+
+  //Setting states for variables
+  const [value, setValue] = useState("");
+  const [error, setError] = useState("");
+  const [chatDisplay, setChatDisplay] = useState([]);
+  //const [possibleRecipe, setPossibleRecipe] = useState("");
+  //const [recipeHistory, setRecipeHistory] = useState([]);
   const [chatHistory, setChatHistory] = useState([
     {
       role: "user",
@@ -17,22 +22,78 @@ const App = () => {
     }
   ])
 
+  //reference point for chat interface
+  const chatRefs = useRef([])
+
+  //typewriter function
+  const typeWriter = (htmlContent, index, t) => {
+    let i = 0
+    const speed = t
+    const tempElement = document.createElement('div')
+    tempElement.innerHTML = htmlContent
+
+    const textContent = Array.from(tempElement.childNodes).reduce((acc, node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return acc + node.textContent
+      } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'BR') {
+        return acc + '\n'
+      }
+      return acc
+    }, '')
+
+    const type = () => {
+      if (i < textContent.length) {
+        if (textContent.charAt(i) === '\n') {
+          chatRefs.current[index].innerHTML += '<br/>'
+        } else {
+          chatRefs.current[index].innerHTML += textContent.charAt(i)
+        }
+        i++
+        setTimeout(type, speed)
+      }
+    }
+    type()
+  }
+
+  //combining the chatref with the typing effect
+  useEffect(() => {
+    chatRefs.current = chatRefs.current.slice(0, chatDisplay.length)
+  }, [chatDisplay])
+
+  //Automatic suggested chat options
   const surpriseOptions = [
     "What's your favourite food?",
     "Who's the famous TV celebrity known for their works in the show Hell's Kitchen?",
     "Where can you traditionally find wasabi?"
   ]
 
+  //Automatic suggested function
   const surprise = () => {
-    const randomValue = surpriseOptions[Math.floor(Math.random() * surpriseOptions.length)]
-    setValue(randomValue)
+    const randomValue = surpriseOptions[Math.floor(Math.random() * surpriseOptions.length)];
+    setValue(randomValue);
   }
 
+  //handle inputs
   const getResponse = async () => {
     if (!value) {
-      setError("Error! Please ask a question!")
-      return
+      setError("Error! Please ask a question!");
+      return;
     }
+    if (value.toLowerCase() === "clear") {
+      setError("Clear all history?");
+      return;
+    }
+    
+    //Seperate chat display => ignore the prepromt for the chat
+    setChatDisplay(oldChatDisplay => [
+      ...oldChatDisplay,
+      {
+        role: "user",
+        parts: value
+      }
+    ])
+
+    //define post request
     try {
       const options = {
         method: "POST",
@@ -45,15 +106,16 @@ const App = () => {
         }
       }
 
-      const response = await fetch('http://localhost:2000/gemini', options)
-      const data = await response.text()
-      console.log("this is data", data)
-      
-      // Replace newlines with <br /> tags
+      //getting response from serperate server with the post request
+      const response = await fetch('http://localhost:2000/gemini', options);
+      const data = await response.text();
+
+      //formatting data to include line breaks in output
       const formattedData = data.replace(/\n/g, '<br />');
 
+      //setting the chathistory for input
       setChatHistory(oldChatHistory => [
-        ...oldChatHistory, 
+        ...oldChatHistory,
         {
           role: "user",
           parts: value
@@ -62,41 +124,75 @@ const App = () => {
           role: "model",
           parts: formattedData
         }
-      ])
-      
+      ]);
+
+      //setting the chat display
       setChatDisplay(oldChatDisplay => [
-        ...oldChatDisplay, 
-        {
-          role: "user",
-          parts: value
-        },
+        ...oldChatDisplay,
         {
           role: "model",
           parts: formattedData
         }
-      ])
+      ]);
 
-      setValue("")
-
+      //resetting the input to empty
+      setValue("");
     } catch (error) {
-      console.error(error)
-      setError("Something went wrong")
+      console.error(error);
+      setError("Something went wrong");
     }
-  }
+  };
 
-  const clear = () => {
-    setValue("")
-    setError("")
-    setChatHistory([])
-  }
-  
+  //function to clear all
+  const clearAll = () => {
+    setValue("");
+    setError("");
+    setChatHistory([]);
+    setChatDisplay([]);
+  };
+
+  //function to clear input only
+  const clearInput = () => {
+    setError("");
+    setValue("");
+  };
+
+  //function to handle enter as a key press - alt to clicking button
+  const handleKeyPress = (event) => {
+    if (!error && event.key === 'Enter') {
+      getResponse();
+    }
+    if (error === "Something went wrong" && event.key === 'Enter') {
+      clearAll();
+    }
+    if (error === "Error! Please ask a question!" && event.key === 'Enter') {
+      clearInput();
+    }
+    if (error === "Clear all history?" && event.key === 'Enter') {
+      clearAll();
+    }
+  };
+
+  //utilizing the typing effect with the output display
+  useEffect(() => {
+    if (chatDisplay.length > 0) {
+      const lastIndex = chatDisplay.length - 1;
+      if (chatDisplay[lastIndex].role === "model") {
+        typeWriter([chatDisplay[lastIndex].parts], lastIndex, 20);
+      }
+      if (chatDisplay[lastIndex].role === "user") {
+        typeWriter([chatDisplay[lastIndex].parts], lastIndex, );
+      }
+    }
+  }, [chatDisplay]);
+
+  //returns wthe set
   return (
     <div className="header">
-      <h1>BLANK</h1>
+      <h1>House</h1>
       <div className="app">
-        <h1>one liner</h1>
         <p>What do you want to know? 
-           <button className="suprise" onClick={surprise} disabled={!chatHistory}>Surprise me</button>
+           <button className="suprise" onClick={surprise} disabled={!chatHistory.length}>Surprise me</button>
         </p>
 
         <div className="input-container">
@@ -104,25 +200,27 @@ const App = () => {
             value={value}
             placeholder="When is Christmas...?"
             onChange={(e) => setValue(e.target.value)}
+            onKeyPress={handleKeyPress}
           />
           {!error && <button onClick={getResponse}>Ask me</button>}
-          {error && <button onClick={clear}>Clear</button>}
+          {error === "Something went wrong" && <button onClick={clearAll}>Clear</button>}
+          {error === "Error! Please ask a question!" && <button onClick={clearInput}>Reset</button>}
+          {error === "Clear all history?" && <button onClick={clearAll}>Clear</button>}
         </div>
         {error && <p>{error}</p>}
         <div className="search-result">
-          {chatDisplay.map((chatItem, _index) => (
-            <div key={_index}>
+          {chatDisplay.map((chatItem, index) => (
+            <div key={index}>
               <p
-                id="container"
+                ref={el => chatRefs.current[index] = el}
                 className="answer"
-                dangerouslySetInnerHTML={{ __html: chatItem.parts }}
               ></p>
             </div>
           ))}
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default App;
