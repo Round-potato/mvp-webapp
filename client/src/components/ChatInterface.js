@@ -22,9 +22,7 @@ const ChatInterface = () => {
     <div className="app">
       <p>
         What do you want to know?
-        <button className="surprise" onClick={surprise} disabled={!chatHistory.length}>
-          Surprise me
-        </button>
+        <button className="surprise" onClick={surprise} disabled={!chatHistory.length}> Surprise me</button>
       </p>
       <InputArea
         value={value}

@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const aiService = require('../services/aiService');
 const {API_KEY} = require('../config/environment');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 

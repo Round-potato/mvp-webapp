@@ -1,18 +1,22 @@
 const express = require("express");
 const cors = require("cors");
-const {PORT} = require('./config/environment');
+const { PORT } = require('./config/environment'); // Ensure your environment config is correctly set up
 const geminiRouter = require('./routes/gemini');
 const classifyRouter = require('./routes/classify');
 const errorHandler = require('./middleware/errorHandler');
 
+
 const app = express();
 
-app.use(cors());
+// Middleware to dynamically set the CORS origin
+
+app.use(cors())
 app.use(express.json());
 
-app.use("/gemini", geminiRouter);
-app.use("/classify", classifyRouter);
+// Route handling
+app.use("/api/gemini", geminiRouter);
+app.use("/api/classify", classifyRouter);
 
 app.use(errorHandler);
 
-app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
+app.listen(PORT, () => console.log(`Listening on port ${PORT}...`));
